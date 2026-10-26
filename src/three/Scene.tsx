@@ -203,9 +203,9 @@ function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker }: Por
   )
 }
 
-/** Reports sustained low frame rates so the app can step quality down. */
+/** Reports sustained low frame rates (two consecutive slow windows) so the app can step quality down. */
 function FpsMonitor({ onLowFps }: { onLowFps(): void }) {
-  const acc = useRef({ frames: 0, time: 0, warmup: 3 })
+  const acc = useRef({ frames: 0, time: 0, warmup: 3, slow: 0 })
   useFrame((_, delta) => {
     const a = acc.current
     if (a.warmup > 0) {
@@ -215,8 +215,10 @@ function FpsMonitor({ onLowFps }: { onLowFps(): void }) {
     a.frames++
     a.time += delta
     if (a.time >= 3) {
-      if (a.frames / a.time < 40) {
+      a.slow = a.frames / a.time < 40 ? a.slow + 1 : 0
+      if (a.slow >= 2) {
         onLowFps()
+        a.slow = 0
         a.warmup = 4
       }
       a.frames = 0

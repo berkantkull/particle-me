@@ -31,6 +31,9 @@ export default function App() {
   const [colorIndex, setColorIndex] = useState(0)
   const [quality, setQuality] = useState<Quality>(detectInitialQuality)
   const autoQuality = useRef(true)
+  // Model loading and camera start-up block the main thread for a few seconds;
+  // frame drops in that window say nothing about the device.
+  const fpsGraceUntil = useRef(0)
   const [resetToken, setResetToken] = useState(0)
   const [showPreview, setShowPreview] = useState(true)
   const [recording, setRecording] = useState(false)
@@ -62,6 +65,7 @@ export default function App() {
     if (!video || status === 'loading') return
     setError(null)
     setStatus('loading')
+    fpsGraceUntil.current = Infinity
     try {
       const { width, height } = QUALITY[quality].camera
       // Camera and models load in parallel; frames are processed only on-device.
@@ -70,6 +74,7 @@ export default function App() {
       tracker.start(video)
       setMode('form')
       setStatus('running')
+      fpsGraceUntil.current = performance.now() + 5000
     } catch (err) {
       tracker.stop()
       stopCamera(video, streamRef.current)
@@ -81,6 +86,7 @@ export default function App() {
           : 'Yüz takip modeli yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.',
       )
       setStatus('error')
+      fpsGraceUntil.current = 0
     }
   }, [video, status, quality, tracker])
 
@@ -146,7 +152,7 @@ export default function App() {
   }, [])
 
   const onLowFps = useCallback(() => {
-    if (!autoQuality.current) return
+    if (!autoQuality.current || performance.now() < fpsGraceUntil.current) return
     setQuality((q) => {
       const i = QUALITY_ORDER.indexOf(q)
       if (i === 0) return q
@@ -244,7 +250,7 @@ export default function App() {
         ref={setVideo}
         muted
         playsInline
-        className={`pointer-events-none absolute right-4 bottom-24 w-24 -scale-x-100 rounded-xl border border-cyan-300/20 object-cover shadow-[0_0_30px_rgba(34,211,238,0.12)] transition-opacity duration-500 sm:right-6 sm:w-40 ${
+        className={`pointer-events-none absolute top-20 right-4 w-20 -scale-x-100 sm:top-auto sm:bottom-24 rounded-xl border border-cyan-300/20 object-cover shadow-[0_0_30px_rgba(34,211,238,0.12)] transition-opacity duration-500 sm:right-6 sm:w-40 ${
           running && showPreview ? 'opacity-80' : 'opacity-0'
         }`}
       />

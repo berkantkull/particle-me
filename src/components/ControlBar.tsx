@@ -21,7 +21,7 @@ export function ControlButton({ children, onClick, active, primary, disabled, ti
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 font-mono text-[11px] font-semibold tracking-[0.14em] whitespace-nowrap transition-colors duration-200 disabled:pointer-events-none disabled:opacity-30 sm:px-4 ${tone}`}
+      className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] font-semibold tracking-[0.12em] whitespace-nowrap transition-colors duration-200 disabled:pointer-events-none disabled:opacity-30 sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.14em] ${tone}`}
     >
       {children}
     </button>
@@ -30,8 +30,9 @@ export function ControlButton({ children, onClick, active, primary, disabled, ti
 
 export function ControlBar({ children }: { children: ReactNode }) {
   return (
-    <div className="pointer-events-auto mx-auto max-w-full rounded-full border border-white/10 bg-black/50 p-1.5 shadow-[0_0_40px_rgba(34,211,238,0.08)] backdrop-blur-md">
-      <div className="no-scrollbar flex gap-1.5 overflow-x-auto">{children}</div>
+    <div className="pointer-events-auto mx-auto max-w-full rounded-3xl border border-white/10 bg-black/50 p-1.5 shadow-[0_0_40px_rgba(34,211,238,0.08)] backdrop-blur-md sm:rounded-full">
+      {/* Wraps onto several rows on phones so every control stays visible. */}
+      <div className="no-scrollbar flex flex-wrap justify-center gap-1.5 sm:flex-nowrap sm:overflow-x-auto">{children}</div>
     </div>
   )
 }
