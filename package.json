@@ -1,0 +1,35 @@
+{
+  "name": "particle-me",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Interactive real-time particle portrait built with Three.js and MediaPipe.",
+  "author": "Berkant Kul",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/setup-mediapipe.mjs",
+    "dev": "vite",
+    "dev:https": "vite --mode https",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
+    "@react-three/fiber": "^9.8.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

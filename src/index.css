@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #000;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  color: #e0f7ff;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
