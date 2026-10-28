@@ -24,6 +24,8 @@ interface SceneProps {
   colorMode: ColorMode
   resetToken: number
   tracker: VisionTracker
+  /** Mouse / touch pushes particles only on the start screen, never over the portrait. */
+  pointerEnabled: boolean
   captureRef: RefObject<CaptureApi | null>
   onLowFps(): void
 }
@@ -46,7 +48,7 @@ export function Scene({ quality, captureRef, onLowFps, ...rest }: SceneProps) {
 
 type PortraitProps = Omit<SceneProps, 'captureRef' | 'onLowFps'>
 
-function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker }: PortraitProps) {
+function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker, pointerEnabled }: PortraitProps) {
   const gl = useThree((s) => s.gl)
   const preset = QUALITY[quality]
   const sim = useMemo(() => createSimulation(gl, preset.texSize, isMobile()), [gl, preset.texSize])
@@ -84,7 +86,7 @@ function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker }: Por
     ring: 0,
   })
 
-  // Mouse / touch acts as a stand-in for the hand whenever no hand is tracked.
+  // On the start screen the mouse / touch stands in for the hand.
   // Listening on window keeps it working under the HTML overlays.
   const pointer = useRef({ x: 0.5, y: 0.5, time: -Infinity })
   useEffect(() => {
@@ -133,7 +135,7 @@ function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker }: Por
 
     const hand = ts.hand
     const mouse = pointer.current
-    const mouseOn = !hand.present && performance.now() - mouse.time < 2500
+    const mouseOn = pointerEnabled && !hand.present && performance.now() - mouse.time < 2500
     const src = hand.present ? hand : mouseOn ? mouse : null
     if (src) {
       const target = tmpHand.set((src.x - 0.5) * vp.width, (0.5 - src.y) * vp.height, 0.6)

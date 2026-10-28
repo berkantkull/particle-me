@@ -239,6 +239,7 @@ export default function App() {
         colorMode={color.id}
         resetToken={resetToken}
         tracker={tracker}
+        pointerEnabled={!running}
         captureRef={captureRef}
         onLowFps={onLowFps}
       />
