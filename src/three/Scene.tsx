@@ -28,16 +28,21 @@ interface SceneProps {
   pointerEnabled: boolean
   captureRef: RefObject<CaptureApi | null>
   onLowFps(): void
+  /** The browser dropped the WebGL context (common on iOS under memory pressure). */
+  onContextLost(): void
 }
 
-export function Scene({ quality, captureRef, onLowFps, ...rest }: SceneProps) {
+export function Scene({ quality, captureRef, onLowFps, onContextLost, ...rest }: SceneProps) {
   return (
     <Canvas
       className="!absolute inset-0"
       dpr={[1, QUALITY[quality].maxDpr]}
       gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 10], fov: 45, near: 0.1, far: 100 }}
-      onCreated={({ gl }) => gl.setClearColor('#000000', 1)}
+      onCreated={({ gl }) => {
+        gl.setClearColor('#000000', 1)
+        gl.domElement.addEventListener('webglcontextlost', onContextLost)
+      }}
     >
       <ParticlePortrait key={quality} quality={quality} {...rest} />
       <FpsMonitor onLowFps={onLowFps} />
@@ -46,7 +51,7 @@ export function Scene({ quality, captureRef, onLowFps, ...rest }: SceneProps) {
   )
 }
 
-type PortraitProps = Omit<SceneProps, 'captureRef' | 'onLowFps'>
+type PortraitProps = Omit<SceneProps, 'captureRef' | 'onLowFps' | 'onContextLost'>
 
 function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker, pointerEnabled }: PortraitProps) {
   const gl = useThree((s) => s.gl)

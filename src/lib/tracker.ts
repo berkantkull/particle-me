@@ -1,6 +1,6 @@
 import type { FaceLandmarker, HandLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision'
 import { classifyHand, GestureStabilizer, type Gesture } from './gesture'
-import { createFaceLandmarker, createHandLandmarker } from './vision'
+import { createFaceLandmarker, createHandLandmarker, preloadModels } from './vision'
 
 /** Face crop in normalized video coordinates (origin top-left, y down). */
 export interface FaceRect {
@@ -62,6 +62,8 @@ export class VisionTracker {
   private face: FaceLandmarker | null = null
   private hand: HandLandmarker | null = null
   private loading: Promise<void> | null = null
+  /** Bumped on dispose so a late-finishing hand model is discarded, not leaked. */
+  private generation = 0
   private video: HTMLVideoElement | null = null
   private running = false
   private timer = 0
@@ -96,15 +98,33 @@ export class VisionTracker {
     }
   }
 
-  load(): Promise<void> {
+  /**
+   * Resolves once face tracking is ready. The hand model is initialised
+   * afterwards in the background, so the portrait appears sooner and the
+   * one-off initialisation cost is split into two shorter stalls.
+   */
+  load(onInit?: () => void): Promise<void> {
     if (this.face) return Promise.resolve()
     return (this.loading ??= (async () => {
       try {
-        // Hands are optional: the on-screen buttons still work without them.
-        const [face, hand] = await Promise.all([createFaceLandmarker(), createHandLandmarker().catch(() => null)])
+        const gen = this.generation
+        const models = await preloadModels()
+        onInit?.()
+        const face = await createFaceLandmarker(models.face)
+        if (gen !== this.generation) {
+          face.close()
+          return
+        }
         this.face = face
-        this.hand = hand
-        this.state.handsAvailable = hand !== null
+        // Hands are optional: the on-screen buttons still work without them.
+        createHandLandmarker(models.hand)
+          .then((hand) => {
+            if (gen !== this.generation) hand.close()
+            else this.hand = hand
+          })
+          .catch(() => {
+            if (gen === this.generation) this.state.handsAvailable = false
+          })
       } finally {
         this.loading = null
       }
@@ -128,6 +148,7 @@ export class VisionTracker {
   }
 
   dispose() {
+    this.generation++
     this.stop()
     this.face?.close()
     this.hand?.close()

@@ -6,6 +6,7 @@ import type { Gesture } from './lib/gesture'
 import { ClipRecorder, recordingMimeType, timestamp } from './lib/media'
 import { detectInitialQuality, particleCount, QUALITY, QUALITY_ORDER, type Quality } from './lib/quality'
 import { VisionTracker } from './lib/tracker'
+import { onModelProgress, preloadModels } from './lib/vision'
 import { Scene, type CaptureApi, type ColorMode, type Mode } from './three/Scene'
 
 type CamStatus = 'idle' | 'loading' | 'running' | 'error'
@@ -18,6 +19,10 @@ const COLORS: { id: ColorMode; label: string; swatch: string }[] = [
 ]
 const MAX_CLIP_MS = 10_000
 const COUNTDOWN_FROM = 3
+/** Give up on a start-up that never finishes instead of looking frozen forever. */
+const START_TIMEOUT_MS = 45_000
+
+class StartTimeout extends Error {}
 const COPYRIGHT_YEAR = 2026
 
 export default function App() {
@@ -29,6 +34,8 @@ export default function App() {
 
   const [status, setStatus] = useState<CamStatus>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [loadText, setLoadText] = useState('')
+  const [contextLost, setContextLost] = useState(false)
   const [mode, setMode] = useState<Mode>('form')
   const [colorIndex, setColorIndex] = useState(0)
   const [quality, setQuality] = useState<Quality>(detectInitialQuality)
@@ -128,17 +135,32 @@ export default function App() {
     if (!video || status === 'loading') return
     setError(null)
     setStatus('loading')
+    setLoadText('KAMERA AÇILIYOR…')
     fpsGraceUntil.current = Infinity
+    let timer = 0
+    let aborted = false
+    const unsubscribe = onModelProgress((p) => p < 100 && setLoadText(`MODEL İNDİRİLİYOR %${p}`))
     try {
       const { width, height } = QUALITY[quality].camera
       // Camera and models load in parallel; frames are processed only on-device.
-      const [stream] = await Promise.all([startCamera(video, width, height), tracker.load()])
-      streamRef.current = stream
+      const camera = startCamera(video, width, height).then((stream) => {
+        // A camera that opens after the start already failed must not stay on.
+        if (aborted) stopCamera(null, stream)
+        else streamRef.current = stream
+      })
+      const models = tracker.load(() => setLoadText('HAZIRLANIYOR…'))
+      const timeout = new Promise<never>((_, reject) => {
+        timer = window.setTimeout(() => reject(new StartTimeout()), START_TIMEOUT_MS)
+      })
+      const ready = Promise.all([camera, models])
+      ready.catch(() => {}) // may settle after the timeout won the race
+      await Promise.race([ready, timeout])
       tracker.start(video)
       setMode('form')
       setStatus('running')
       fpsGraceUntil.current = performance.now() + 5000
     } catch (err) {
+      aborted = true
       tracker.stop()
       stopCamera(video, streamRef.current)
       streamRef.current = null
@@ -146,12 +168,24 @@ export default function App() {
       setError(
         err instanceof CameraError
           ? err.message
-          : 'Yüz takip modeli yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.',
+          : err instanceof StartTimeout
+            ? 'Başlatma çok uzun sürdü. Bağlantını kontrol edip tekrar dene.'
+            : 'Yüz takip modeli yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.',
       )
       setStatus('error')
       fpsGraceUntil.current = 0
+    } finally {
+      clearTimeout(timer)
+      unsubscribe()
     }
   }, [video, status, quality, tracker])
+
+  // Start downloading the models while the visitor reads the start screen, so
+  // START CAMERA rarely has to wait for the network.
+  useEffect(() => {
+    const id = window.setTimeout(() => preloadModels().catch(() => {}), 1200)
+    return () => clearTimeout(id)
+  }, [])
 
   // Release camera, detectors and recorder when the app goes away.
   useEffect(() => {
@@ -242,6 +276,7 @@ export default function App() {
         pointerEnabled={!running}
         captureRef={captureRef}
         onLowFps={onLowFps}
+        onContextLost={() => setContextLost(true)}
       />
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.75)_100%)]" />
@@ -282,6 +317,11 @@ export default function App() {
                 {status === 'loading' ? 'LOADING…' : 'START CAMERA'}
               </ControlButton>
             </div>
+            {status === 'loading' && (
+              <p className="mt-3 font-mono text-[10px] tracking-[0.2em] text-cyan-200/60" aria-live="polite">
+                {loadText}
+              </p>
+            )}
             {error && (
               <p role="alert" className="mt-5 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                 {error}
@@ -322,6 +362,21 @@ export default function App() {
       {shutterKey > 0 && <div key={shutterKey} className="shutter pointer-events-none absolute inset-0 bg-white" />}
 
       {shot && <ShotCard shot={shot} onClose={closeShot} />}
+
+      {contextLost && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 p-6 text-center" role="alert">
+          <div className="max-w-xs">
+            <p className="text-sm leading-relaxed text-cyan-100/80">
+              Grafik işlemcisi sıfırlandı. Devam etmek için sayfayı yenile.
+            </p>
+            <div className="mt-5 flex justify-center">
+              <ControlButton primary onClick={() => location.reload()}>
+                YENİLE
+              </ControlButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="pointer-events-none absolute top-20 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-black/60 px-4 py-2 font-mono text-[11px] tracking-[0.2em] text-cyan-100 backdrop-blur">
