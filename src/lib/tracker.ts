@@ -43,7 +43,8 @@ const FACE_OVAL = [
 ]
 const PALM = [0, 5, 9, 13, 17]
 const MASK_SIZE = 128
-const FACE_SIZE = 256
+/** Side of the face-crop texture; ~384² texels covers the 70K-particle preset. */
+export const FACE_SIZE = 384
 const FACE_LOST_MS = 600
 const LEVELS_SIZE = 32
 

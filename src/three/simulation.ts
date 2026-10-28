@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { GPUComputationRenderer, type Variable } from 'three/examples/jsm/misc/GPUComputationRenderer.js'
+import { FACE_SIZE } from '../lib/tracker'
 import { pointsFragmentShader, pointsVertexShader, positionShader, velocityShader } from './shaders'
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
@@ -111,7 +112,7 @@ export function createSimulation(gl: THREE.WebGLRenderer, size: number, halfFloa
     uPointSize: { value: 3 },
     uPointScale: { value: 10 },
     uColorMode: { value: 0 },
-    uTexel: { value: new THREE.Vector2(1.5 / 256, 1.5 / 256) },
+    uTexel: { value: new THREE.Vector2(1.5 / FACE_SIZE, 1.5 / FACE_SIZE) },
   }
   const material = new THREE.ShaderMaterial({
     uniforms: renderUniforms,

@@ -30,7 +30,7 @@ Kamera erişimi yalnızca `localhost` veya HTTPS üzerinden çalışır. `dist/`
 | `T` / 👍 | 3-2-1 geri sayımlı, elsiz selfie |
 | REC | 10 sn'ye kadar video (MediaRecorder destekleniyorsa) |
 | Renk | CYAN · NATURAL · AURORA · MONO |
-| Q | LOW (6K) · MEDIUM (16K) · HIGH (31K) · ULTRA (50K) parçacık |
+| Q | LOW (10K) · MEDIUM (20K) · HIGH (35K) · ULTRA (70K) parçacık |
 
 El hareketleri: **açık avuç** → dağıt, **yumruk** → birleştir, **başparmak yukarı** → geri sayımlı fotoğraf, **el hareketi** → parçacıkları iter ve girdap oluşturur.
 
@@ -39,7 +39,7 @@ El hareketleri: **açık avuç** → dağıt, **yumruk** → birleştir, **başp
 ## Mimari
 
 - **Algılama** (`src/lib/tracker.ts`): MediaPipe kendi zamanlayıcısında, render döngüsünden bağımsız ve kaliteye göre kısıtlanmış hızda çalışır. Sonuçlar React state yerine paylaşılan, değiştirilebilir bir nesneye yazılır.
-- **Yüz kırpımı + maske**: her algılamada yüz bölgesi 256×256'lık bir canvas'a kırpılır ve aynı kırpım alanında yüz ovalinden yumuşak kenarlı bir maske çizilir. İkisi sıradan doku olarak GPU'ya yüklenir (vertex shader'da VideoTexture okumak bazı GPU'larda siyah döndüğü için). Yüz dışındaki parçacıklar portrenin etrafında dönen soluk bir haleye dönüşür.
+- **Yüz kırpımı + maske**: her algılamada yüz bölgesi 384×384'lük bir canvas'a kırpılır ve aynı kırpım alanında yüz ovalinden yumuşak kenarlı bir maske çizilir. İkisi sıradan doku olarak GPU'ya yüklenir (vertex shader'da VideoTexture okumak bazı GPU'larda siyah döndüğü için). Yüz dışındaki parçacıklar portrenin etrafında dönen soluk bir haleye dönüşür.
 - **Otomatik seviyeler**: yüz bölgesinin 32×32'lik küçültülmüş kopyasından parlaklık aralığı ölçülür; loş veya yandan aydınlatılmış yüzler de tam kontrastla görünür.
 - **Parçacıklar** (`src/three/`): GPGPU (GPUComputationRenderer) ile konum/hız dokuları GPU'da simüle edilir. Her parçacığın yüz kırpımı içinde sabit bir "ev" koordinatı vardır (altın açı spirali). Hedef konum, renk ve derinlik GPU'da yüz kırpımı dokusundan örneklenir; kamera görüntüsü hiçbir karede büyük CPU dizilerine dönüştürülmez.
 - **Kuvvetler**: yaya bağlı birleşme (parçacık başına kademeli), akış alanı + küresel kabuk ile dağılma, tek seferlik patlama itkisi, el konumunda itme + girdap.

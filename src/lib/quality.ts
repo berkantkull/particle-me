@@ -14,10 +14,10 @@ export interface QualityPreset {
 export const QUALITY_ORDER: Quality[] = ['low', 'medium', 'high', 'ultra']
 
 export const QUALITY: Record<Quality, QualityPreset> = {
-  low: { label: 'LOW', texSize: 80, maxDpr: 1, detectInterval: 70, pointSize: 4.0, camera: { width: 640, height: 480 } },
-  medium: { label: 'MEDIUM', texSize: 128, maxDpr: 1.5, detectInterval: 45, pointSize: 3.2, camera: { width: 640, height: 480 } },
-  high: { label: 'HIGH', texSize: 176, maxDpr: 2, detectInterval: 33, pointSize: 2.6, camera: { width: 960, height: 720 } },
-  ultra: { label: 'ULTRA', texSize: 224, maxDpr: 2, detectInterval: 33, pointSize: 2.2, camera: { width: 1280, height: 720 } },
+  low: { label: 'LOW', texSize: 100, maxDpr: 1, detectInterval: 70, pointSize: 3.2, camera: { width: 640, height: 480 } },
+  medium: { label: 'MEDIUM', texSize: 142, maxDpr: 1.5, detectInterval: 45, pointSize: 2.9, camera: { width: 640, height: 480 } },
+  high: { label: 'HIGH', texSize: 187, maxDpr: 2, detectInterval: 33, pointSize: 2.45, camera: { width: 960, height: 720 } },
+  ultra: { label: 'ULTRA', texSize: 265, maxDpr: 2, detectInterval: 33, pointSize: 1.9, camera: { width: 1280, height: 720 } },
 }
 
 export const isMobile = (): boolean =>
