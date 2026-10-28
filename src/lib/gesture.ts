@@ -1,6 +1,6 @@
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision'
 
-export type Gesture = 'open' | 'fist' | 'none'
+export type Gesture = 'open' | 'fist' | 'thumbs' | 'none'
 
 const TIPS = [8, 12, 16, 20]
 const PIPS = [6, 10, 14, 18]
@@ -16,14 +16,20 @@ export function classifyHand(lm: NormalizedLandmark[], aspect: number): Gesture 
   const palm = d(lm[0], lm[9])
   const tipSpread = TIPS.reduce((s, t) => s + d(lm[t], wrist), 0) / 4 / palm
   if (extended >= 4 && tipSpread > 1.55) return 'open'
+  // Thumbs up: fingers curled, thumb pointing up (image y grows downwards)
+  // and clearly away from the knuckles. Checked before fist, which it resembles.
+  const thumbUp =
+    lm[4].y < lm[3].y && lm[3].y < lm[2].y && lm[4].y < lm[5].y - palm * 0.35 && d(lm[4], lm[5]) > palm * 0.6
+  if (extended === 0 && thumbUp) return 'thumbs'
   if (extended === 0 && tipSpread < 1.25) return 'fist'
   return 'none'
 }
 
 /**
  * Debounces noisy per-frame classifications: a pose must be held for `holdMs`
- * before it is committed, and committed changes are rate-limited by `cooldownMs`
- * so false positives cannot make the particles flip modes repeatedly.
+ * (longer for thumbs up, which takes a photo) before it is committed, and
+ * committed changes are rate-limited by `cooldownMs` so false positives cannot
+ * make the particles flip modes repeatedly.
  */
 export class GestureStabilizer {
   committed: Gesture = 'none'
@@ -45,7 +51,8 @@ export class GestureStabilizer {
       this.candidateSince = now
       return null
     }
-    if (raw === this.committed || now - this.candidateSince < this.holdMs) return null
+    const hold = raw === 'thumbs' ? this.holdMs * 2 : this.holdMs
+    if (raw === this.committed || now - this.candidateSince < hold) return null
     if (raw !== 'none' && now - this.lastCommit < this.cooldownMs) return null
     this.committed = raw
     if (raw !== 'none') this.lastCommit = now

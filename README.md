@@ -26,12 +26,15 @@ Kamera erişimi yalnızca `localhost` veya HTTPS üzerinden çalışır. `dist/`
 | RECONSTRUCT (`R`) | Yüzü yeniden oluşturur |
 | `Space` | Dağıt / birleştir arasında geçiş |
 | RESET (`X`) | Parçacıkları savurup baştan birleştirir |
-| CAPTURE (`C`) | PNG kaydeder |
+| CAPTURE (`C`) | Fotoğraf çeker; önizlemeden paylaş veya indir |
+| `T` / 👍 | 3-2-1 geri sayımlı, elsiz selfie |
 | REC | 10 sn'ye kadar video (MediaRecorder destekleniyorsa) |
 | Renk | CYAN · NATURAL · AURORA · MONO |
 | Q | LOW (6K) · MEDIUM (16K) · HIGH (31K) · ULTRA (50K) parçacık |
 
-El hareketleri: **açık avuç** → dağıt, **yumruk** → birleştir, **el hareketi** → parçacıkları iter ve girdap oluşturur.
+El hareketleri: **açık avuç** → dağıt, **yumruk** → birleştir, **başparmak yukarı** → geri sayımlı fotoğraf, **el hareketi** → parçacıkları iter ve girdap oluşturur.
+
+Çekilen fotoğraf ve videolar önizleme kartında açılır; **PAYLAŞ** cihazın paylaşım menüsünü (WhatsApp, Instagram…) açar, **İNDİR** dosyayı kaydeder.
 
 ## Mimari
 

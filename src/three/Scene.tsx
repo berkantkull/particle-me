@@ -140,7 +140,7 @@ function ParticlePortrait({ quality, mode, colorMode, resetToken, tracker }: Por
       if (s.handStrength < 0.05) s.hand.copy(target)
       else s.hand.lerp(target, ease(14))
     }
-    const handTarget = hand.present ? (hand.gesture === 'fist' ? 0.15 : 1) : mouseOn ? 1.3 : 0
+    const handTarget = hand.present ? (hand.gesture === 'fist' || hand.gesture === 'thumbs' ? 0.15 : 1) : mouseOn ? 1.3 : 0
     s.handStrength += (handTarget - s.handStrength) * ease(6)
     s.ring += ((hand.present ? 1 : 0) - s.ring) * ease(6)
 

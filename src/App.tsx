@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ControlBar, ControlButton } from './components/ControlBar'
+import { ShotCard, type Shot } from './components/ShotCard'
 import { CameraError, startCamera, stopCamera } from './lib/camera'
 import type { Gesture } from './lib/gesture'
-import { ClipRecorder, downloadBlob, recordingMimeType, timestamp } from './lib/media'
+import { ClipRecorder, recordingMimeType, timestamp } from './lib/media'
 import { detectInitialQuality, particleCount, QUALITY, QUALITY_ORDER, type Quality } from './lib/quality'
 import { VisionTracker } from './lib/tracker'
 import { Scene, type CaptureApi, type ColorMode, type Mode } from './three/Scene'
@@ -16,6 +17,7 @@ const COLORS: { id: ColorMode; label: string; swatch: string }[] = [
   { id: 'mono', label: 'MONO', swatch: 'linear-gradient(135deg,#94a3b8,#f8fafc)' },
 ]
 const MAX_CLIP_MS = 10_000
+const COUNTDOWN_FROM = 3
 const COPYRIGHT_YEAR = 2026
 
 export default function App() {
@@ -39,6 +41,11 @@ export default function App() {
   const [recording, setRecording] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [hud, setHud] = useState({ face: false, hand: false, gesture: 'none' as Gesture, handsAvailable: true })
+  const [shot, setShot] = useState<Shot | null>(null)
+  const shotRef = useRef<Shot | null>(null)
+  const [countdown, setCountdown] = useState(0)
+  const countdownTimer = useRef(0)
+  const [shutterKey, setShutterKey] = useState(0)
 
   const color = COLORS[colorIndex]
   const running = status === 'running'
@@ -48,18 +55,74 @@ export default function App() {
     window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2200)
   }, [])
 
+  const openShot = useCallback((blob: Blob, filename: string, kind: Shot['kind']) => {
+    if (shotRef.current) URL.revokeObjectURL(shotRef.current.url)
+    const next = { blob, url: URL.createObjectURL(blob), filename, kind }
+    shotRef.current = next
+    setShot(next)
+  }, [])
+
+  const closeShot = useCallback(() => {
+    if (shotRef.current) URL.revokeObjectURL(shotRef.current.url)
+    shotRef.current = null
+    setShot(null)
+  }, [])
+
+  const capture = useCallback(async () => {
+    const api = captureRef.current
+    if (!api) return
+    setShutterKey((k) => k + 1)
+    try {
+      openShot(await api.snapshot(), `particle-me-${timestamp()}.png`, 'image')
+    } catch {
+      flash('KAYIT BAŞARISIZ')
+    }
+  }, [flash, openShot])
+
+  const cancelCountdown = useCallback(() => {
+    clearTimeout(countdownTimer.current)
+    countdownTimer.current = 0
+    setCountdown(0)
+  }, [])
+
+  // Hands-free selfie: 3-2-1, then capture. Ignored while one is already running
+  // or a previous shot is still on screen.
+  const startCountdown = useCallback(() => {
+    if (countdownTimer.current || shotRef.current) return
+    let n = COUNTDOWN_FROM
+    setCountdown(n)
+    const tick = () => {
+      n -= 1
+      if (n > 0) {
+        setCountdown(n)
+        countdownTimer.current = window.setTimeout(tick, 1000)
+      } else {
+        countdownTimer.current = 0
+        setCountdown(0)
+        capture()
+      }
+    }
+    countdownTimer.current = window.setTimeout(tick, 1000)
+  }, [capture])
+
   useEffect(() => {
-    tracker.onGesture = (g) => setMode(g === 'open' ? 'disperse' : 'form')
+    tracker.onGesture = (g) => {
+      if (g === 'thumbs') startCountdown()
+      else setMode(g === 'open' ? 'disperse' : 'form')
+    }
     tracker.interval = QUALITY[quality].detectInterval
-  }, [tracker, quality])
+  }, [tracker, quality, startCountdown])
+
+  useEffect(() => () => clearTimeout(countdownTimer.current), [])
 
   const stop = useCallback(() => {
+    cancelCountdown()
     recorder.stop()
     tracker.stop()
     stopCamera(video, streamRef.current)
     streamRef.current = null
     setStatus('idle')
-  }, [tracker, recorder, video])
+  }, [tracker, recorder, video, cancelCountdown])
 
   const start = useCallback(async () => {
     if (!video || status === 'loading') return
@@ -118,28 +181,16 @@ export default function App() {
     return () => clearInterval(id)
   }, [running, tracker])
 
-  const capture = useCallback(async () => {
-    const api = captureRef.current
-    if (!api) return
-    try {
-      downloadBlob(await api.snapshot(), `particle-me-${timestamp()}.png`)
-      flash('PNG KAYDEDİLDİ')
-    } catch {
-      flash('KAYIT BAŞARISIZ')
-    }
-  }, [flash])
-
   const toggleRecording = useCallback(() => {
     if (recorder.active) return recorder.stop()
     const api = captureRef.current
     if (!api) return
     const ok = recorder.start(api.canvas, MAX_CLIP_MS, (blob, ext) => {
       setRecording(false)
-      downloadBlob(blob, `particle-me-${timestamp()}.${ext}`)
-      flash('VİDEO KAYDEDİLDİ')
+      openShot(blob, `particle-me-${timestamp()}.${ext}`, 'video')
     })
     setRecording(ok)
-  }, [recorder, flash])
+  }, [recorder, openShot])
 
   const reset = useCallback(() => {
     setMode('form')
@@ -163,7 +214,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat || e.target instanceof HTMLInputElement) return
+      if (e.repeat || e.target instanceof HTMLInputElement || shotRef.current) return
       const k = e.key.toLowerCase()
       if (k === 'd') setMode('disperse')
       else if (k === 'r') setMode('form')
@@ -172,10 +223,11 @@ export default function App() {
         setMode((m) => (m === 'form' ? 'disperse' : 'form'))
       } else if (k === 'x') reset()
       else if (k === 'c') capture()
+      else if (k === 't') startCountdown()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [reset, capture])
+  }, [reset, capture, startCountdown])
 
   const canRecord = recordingMimeType() !== null
 
@@ -208,7 +260,7 @@ export default function App() {
             {hud.handsAvailable && (
               <StatusChip
                 on={hud.hand}
-                label={hud.hand ? `HAND · ${hud.gesture === 'open' ? 'OPEN' : hud.gesture === 'fist' ? 'FIST' : 'TRACKING'}` : 'NO HAND'}
+                label={hud.hand ? `HAND · ${hud.gesture === 'open' ? 'OPEN' : hud.gesture === 'fist' ? 'FIST' : hud.gesture === 'thumbs' ? 'THUMBS UP' : 'TRACKING'}` : 'NO HAND'}
               />
             )}
           </div>
@@ -255,6 +307,21 @@ export default function App() {
         }`}
       />
 
+      {countdown > 0 && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span
+            key={countdown}
+            className="countdown font-mono text-8xl font-bold text-cyan-50 drop-shadow-[0_0_30px_rgba(34,211,238,0.8)] sm:text-9xl"
+          >
+            {countdown}
+          </span>
+        </div>
+      )}
+
+      {shutterKey > 0 && <div key={shutterKey} className="shutter pointer-events-none absolute inset-0 bg-white" />}
+
+      {shot && <ShotCard shot={shot} onClose={closeShot} />}
+
       {toast && (
         <div className="pointer-events-none absolute top-20 left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/30 bg-black/60 px-4 py-2 font-mono text-[11px] tracking-[0.2em] text-cyan-100 backdrop-blur">
           {toast}
@@ -264,7 +331,7 @@ export default function App() {
       {/* Controls */}
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6">
         {running && hud.handsAvailable && (
-          <p className="font-mono text-[10px] tracking-[0.15em] text-cyan-200/40">✋ AÇIK AVUÇ: DAĞIT · ✊ YUMRUK: BİRLEŞTİR</p>
+          <p className="font-mono text-[10px] tracking-[0.15em] text-cyan-200/40">✋ DAĞIT · ✊ BİRLEŞTİR · 👍 FOTOĞRAF</p>
         )}
         <ControlBar>
           <ControlButton primary={!running} active={running} onClick={running ? stop : start} disabled={!video || status === 'loading'}>
